@@ -11,15 +11,13 @@ import { setTodos } from './features/todos';
 
 function getFilteredTodos(todos: Todo[], query: string, queryInput: string) {
   const lowerCaseQueryInput = queryInput.toLowerCase();
-  const preparedTodos = todos.filter(todo => {
-    if (query === 'active') {
-      return todo.completed === false;
-    } else if (query === 'completed') {
-      return todo.completed === true;
-    } else {
-      return todos;
-    }
-  });
+  let preparedTodos = todos;
+
+  if (query === 'active') {
+    preparedTodos = todos.filter(todo => !todo.completed);
+  } else if (query === 'completed') {
+    preparedTodos = todos.filter(todo => todo.completed);
+  }
 
   let readyTodos;
 
