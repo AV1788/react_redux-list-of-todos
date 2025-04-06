@@ -1,26 +1,108 @@
 import 'bulma/css/bulma.css';
 import '@fortawesome/fontawesome-free/css/all.css';
 import { Loader, TodoFilter, TodoList, TodoModal } from './components';
+import { Todo } from './types/Todo';
+import { useEffect, useState } from 'react';
+import { getTodos } from './api';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from './app/store';
+import { setCurrentTodo } from './features/currentTodo';
+import { setTodos } from './features/todos';
 
-export const App = () => (
-  <>
-    <div className="section">
-      <div className="container">
-        <div className="box">
-          <h1 className="title">Todos:</h1>
+function getFilteredTodos(todos: Todo[], query: string, queryInput: string) {
+  const lowerCaseQueryInput = queryInput.toLowerCase();
+  const preparedTodos = todos.filter(todo => {
+    if (query === 'active') {
+      return todo.completed === false;
+    } else if (query === 'completed') {
+      return todo.completed === true;
+    } else {
+      return todos;
+    }
+  });
 
-          <div className="block">
-            <TodoFilter />
-          </div>
+  let readyTodos;
 
-          <div className="block">
-            <Loader />
-            <TodoList />
+  if (queryInput !== '') {
+    readyTodos = preparedTodos.filter(readyTodo =>
+      readyTodo.title.toLowerCase().includes(lowerCaseQueryInput),
+    );
+
+    return readyTodos;
+  }
+
+  return preparedTodos;
+}
+
+export const App = () => {
+  const [loading, setLoading] = useState(false);
+  const [clickedTodos, setClickedTodos] = useState<number[]>([]);
+
+  const dispatch = useDispatch();
+  const todos = useSelector((state: RootState) => state.todos);
+  const checkedTodo = useSelector((state: RootState) => state.currentTodo);
+
+  const { query, status } = useSelector((state: RootState) => state.filter);
+
+  useEffect(() => {
+    setLoading(true);
+    getTodos()
+      .then(fetchedTodos => {
+        dispatch(setTodos(fetchedTodos));
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const isTodoClicked = (todoId: number) => {
+    return clickedTodos.includes(todoId);
+  };
+
+  const toggleTodoClicked = (todoId: number) => {
+    if (isTodoClicked(todoId)) {
+      setClickedTodos(prev => prev.filter(id => id !== todoId));
+    } else {
+      setClickedTodos(prev => [...prev, todoId]);
+    }
+  };
+
+  const resetTodoClickedState = () => {
+    setClickedTodos([]);
+  };
+
+  const visibleTodos = getFilteredTodos(todos, status, query);
+
+  return (
+    <>
+      <div className="section">
+        <div className="container">
+          <div className="box">
+            <h1 className="title">Todos:</h1>
+
+            <div className="block">
+              <TodoFilter />
+            </div>
+
+            <div className="block">
+              {loading ? (
+                <Loader />
+              ) : (
+                <TodoList
+                  todos={visibleTodos}
+                  checkedTodo={todo => {
+                    dispatch(setCurrentTodo(todo));
+                  }}
+                  isTodoClicked={isTodoClicked}
+                  toggleTodoClicked={toggleTodoClicked}
+                />
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <TodoModal />
-  </>
-);
+      {checkedTodo !== null && (
+        <TodoModal resetTodoClickedState={resetTodoClickedState} />
+      )}
+    </>
+  );
+};
